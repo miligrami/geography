@@ -37,14 +37,15 @@
     --accent-soft: #eaf1f6;
 
     /* Map */
-    --ocean-light: #e5eef3;
-    --ocean-deep: #cbdde7;
-    --land: #f8f5ee;         /* every country in this round: one calm colour */
-    --land-border: #aea696;
-    --land-hover: #e0eaf1;
-    --land-off: #e4e1d9;     /* countries not in this round */
-    --land-off-border: #d6d2c8;
-    --coast: #8ea3af;
+    --ocean-light: #dae8f0;
+    --ocean-deep: #bdd5e2;
+    --land: #e6e2d8;         /* every country in this round: one calm stone grey */
+    --land-border: #7d7a72;
+    --land-hover: #fff1b8;   /* light yellow under the mouse */
+    --land-hover-border: #b8912e;
+    --land-off: #f5f4f1;     /* countries not in this round: pale, so the round stands out */
+    --land-off-border: #dedcd7;
+    --coast: #6e8794;
 
     /* Game states: the only strong colours on the map */
     --target: #f29e1f;
@@ -175,22 +176,23 @@
   #mapWrap { position: relative; flex: 1; min-height: 0; background: var(--ocean-deep); overflow: hidden; }
   #map { width: 100%; height: 100%; display: block; }
   .sphere { fill: url(#oceanGradient); }
-  .graticule { fill: none; stroke: #ffffff; stroke-opacity: .4; stroke-width: .5px; vector-effect: non-scaling-stroke; }
+  .graticule { fill: none; stroke: #ffffff; stroke-opacity: .35; stroke-width: .5px; vector-effect: non-scaling-stroke; }
   /* A faint light halo along every coast */
-  .coast-glow-wide  { fill: none; stroke: #f2f7fa; stroke-opacity: .5; stroke-width: 7px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .coast-glow-thin  { fill: none; stroke: #f5f9fb; stroke-opacity: .85; stroke-width: 2.5px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .coast-line       { fill: none; stroke: var(--coast); stroke-width: .7px; vector-effect: non-scaling-stroke; }
+  .coast-glow-wide  { fill: none; stroke: #eef5f9; stroke-opacity: .35; stroke-width: 6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .coast-glow-thin  { fill: none; stroke: #f3f8fb; stroke-opacity: .7; stroke-width: 2px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .coast-line       { fill: none; stroke: var(--coast); stroke-width: .9px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  #map path { shape-rendering: geometricPrecision; }
 
   /* Countries not in this round: quiet grey */
   .country { fill: var(--land-off); stroke: var(--land-off-border); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
   /* Countries in this round: all the same colour, thin borders between them */
-  .country.play { fill: var(--land); stroke: var(--land-border); stroke-width: .8px; cursor: pointer; transition: fill .15s; }
-  .clickable .country.play:hover, .clickable .dot.play:hover { fill: var(--land-hover); }
+  .country.play { fill: var(--land); stroke: var(--land-border); stroke-width: .9px; cursor: pointer; transition: fill .12s; }
+  .clickable .country.play:hover, .clickable .dot.play:hover { fill: var(--land-hover); stroke: var(--land-hover-border); }
   .country.target, .dot.target, .country.reveal, .dot.reveal { fill: var(--target) !important; animation: pulse 1.4s ease-in-out infinite; }
   .country.right, .dot.right { fill: var(--right) !important; }
   .country.wrong, .dot.wrong, .country.clicked, .dot.clicked { fill: var(--wrong) !important; }
   @keyframes pulse { 50% { fill: var(--target-glow); } }
-  .dot { fill: var(--land); stroke: #7d8a93; stroke-width: 1.3px; vector-effect: non-scaling-stroke; cursor: pointer;
+  .dot { fill: var(--land); stroke: #6f6653; stroke-width: 1.3px; vector-effect: non-scaling-stroke; cursor: pointer;
          filter: drop-shadow(0 1px 2px rgba(28,45,60,.25)); transition: fill .15s; }
 
   /* Close-up box for small islands */
@@ -537,7 +539,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Ocean gradient (lighter in the middle, deeper at the edges).
   svg.insert("defs", ":first-child").html(
     '<radialGradient id="oceanGradient" cx="50%" cy="45%" r="75%">' +
-    '<stop offset="0%" stop-color="#e4eef3"/><stop offset="100%" stop-color="#c9dce6"/></radialGradient>');
+    '<stop offset="0%" stop-color="#dae8f0"/><stop offset="100%" stop-color="#bdd5e2"/></radialGradient>');
 
   let projection, path;
   let countryPaths, dots;
