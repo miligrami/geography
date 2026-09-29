@@ -94,8 +94,8 @@
     text-align: left; padding: 12px 12px 12px 14px; min-height: 64px;
   }
   #continentChoices button span { font-size: 14.5px; line-height: 1.25; min-width: 0; }
-  #continentChoices button small { display: block; color: var(--faint); font-size: 12px; font-weight: 400; margin-top: 3px; }
-  #continentChoices svg { flex-shrink: 0; width: 46px; height: 38px; }
+  #continentChoices button small { display: block; color: var(--faint); font-size: 12px; font-weight: 400; margin-top: 3px; white-space: nowrap; }
+  #continentChoices svg { flex-shrink: 1; min-width: 26px; width: 46px; height: 38px; }
   #continentChoices svg path { fill: #dcd7cc; transition: fill .15s; }
   #continentChoices button:hover svg path { fill: #cdc7ba; }
   #continentChoices button[data-code="WD"] { grid-column: 1 / -1; }
@@ -186,9 +186,9 @@
   /* Countries in this round: all the same colour, thin borders between them */
   .country.play { fill: var(--land); stroke: var(--land-border); stroke-width: .8px; cursor: pointer; transition: fill .15s; }
   .clickable .country.play:hover, .clickable .dot.play:hover { fill: var(--land-hover); }
-  .country.target, .dot.target { fill: var(--target) !important; animation: pulse 1.4s ease-in-out infinite; }
+  .country.target, .dot.target, .country.reveal, .dot.reveal { fill: var(--target) !important; animation: pulse 1.4s ease-in-out infinite; }
   .country.right, .dot.right { fill: var(--right) !important; }
-  .country.wrong, .dot.wrong { fill: var(--wrong) !important; }
+  .country.wrong, .dot.wrong, .country.clicked, .dot.clicked { fill: var(--wrong) !important; }
   @keyframes pulse { 50% { fill: var(--target-glow); } }
   .dot { fill: var(--land); stroke: #7d8a93; stroke-width: 1.3px; vector-effect: non-scaling-stroke; cursor: pointer;
          filter: drop-shadow(0 1px 2px rgba(28,45,60,.25)); transition: fill .15s; }
@@ -273,7 +273,7 @@
     <div class="stats">
       <span class="stat"><span data-t="score"></span> <b id="score">0</b></span>
       <span class="stat"><span data-t="left"></span> <b id="left">0</b></span>
-      <span class="stat" id="timer"><span data-t="time"></span> <b id="time">20:00</b></span>
+      <span class="stat" id="timer"><span data-t="time"></span> <b id="time">0:00</b></span>
     </div>
     <button id="skipBtn" data-t="skip"></button>
     <button id="quitBtn" data-t="menu"></button>
@@ -313,21 +313,20 @@
 document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Settings ----------
-  const ROUND_SECONDS = 20 * 60;   // 20 minutes per round
   const PAUSE_AFTER_RIGHT = 700;   // milliseconds before the next question
   const PAUSE_AFTER_WRONG = 1800;
   const W = 1000, H = 620;         // drawing size of the map
 
-  // Each continent: the area of the globe to show [west, south, east, north].
+  // Each continent: minutes per game, and the area of the globe to show [west, south, east, north].
   // (Its name in each language is in TEXT below.)
   const CONTINENTS = {
-    EU: { box: [-25, 34, 48, 71] },
-    AS: { box: [26, -11, 150, 60] },
-    AF: { box: [-26, -36, 58, 38] },
-    NA: { box: [-170, 7, -52, 72] },
-    SA: { box: [-92, -56, -32, 13] },
-    OC: { box: [110, -48, 195, 15] },
-    WD: { world: true },   // the whole world: every country from every continent
+    EU: { minutes: 15, box: [-25, 34, 48, 71] },
+    AS: { minutes: 15, box: [26, -11, 150, 60] },
+    AF: { minutes: 20, box: [-26, -36, 58, 38] },
+    NA: { minutes: 15, box: [-170, 7, -52, 72] },
+    SA: { minutes: 10, box: [-92, -56, -32, 13] },
+    OC: { minutes: 10, box: [110, -48, 195, 15] },
+    WD: { minutes: 30, world: true },   // the whole world: every country from every continent
   };
 
   // How each mode works:
@@ -356,7 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const TEXT = {
     en: {
       title: "Geography Game",
-      sub: "Pick a continent and play. Each game lasts 20 minutes.",
+      sub: "Pick a continent and play.",
       continent: "Continent", topic: "Topic", answerBy: "Answer by", start: "Start",
       subjects: { country: "Countries", capital: "Capitals", flag: "Flags" },
       methods: { click: "Clicking the map", type: "Typing" },
@@ -384,7 +383,7 @@ document.addEventListener("DOMContentLoaded", () => {
       zoomIn: "Zoom in", zoomOut: "Zoom out", zoomReset: "Show whole continent",
       correct: "✓ Correct!",
       correctIs: x => "✓ Correct — " + x,
-      wrongClick: (clicked, answer) => "✗ That was " + clicked + ". " + answer + " is shown in green.",
+      wrongClick: (clicked, answer) => "✗ That was " + clicked + ". " + answer + " is shown in orange.",
       wrongIs: x => "✗ It is " + x,
       wrongCapital: (c, cap) => "✗ The capital of " + c + " is " + cap,
       skipped: x => "Skipped — it was " + x,
@@ -393,7 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     lv: {
       title: "Ģeogrāfijas spēle",
-      sub: "Izvēlies kontinentu un spēlē. Katra spēle ilgst 20 minūtes.",
+      sub: "Izvēlies kontinentu un spēlē.",
       continent: "Kontinents", topic: "Tēma", answerBy: "Kā atbildēt", start: "Sākt",
       subjects: { country: "Valstis", capital: "Galvaspilsētas", flag: "Karogi" },
       methods: { click: "Klikšķinot kartē", type: "Rakstot" },
@@ -421,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
       zoomIn: "Tuvināt", zoomOut: "Tālināt", zoomReset: "Rādīt visu kontinentu",
       correct: "✓ Pareizi!",
       correctIs: x => "✓ Pareizi — " + x,
-      wrongClick: (clicked, answer) => "✗ Tā ir " + clicked + ". Pareizā atbilde — " + answer + " (zaļā krāsā).",
+      wrongClick: (clicked, answer) => "✗ Tā ir " + clicked + ". Pareizā atbilde — " + answer + " (oranžā krāsā).",
       wrongIs: x => "✗ Pareizā atbilde: " + x,
       wrongCapital: (c, cap) => "✗ " + c + ": galvaspilsēta ir " + cap,
       skipped: x => "Izlaists — pareizā atbilde: " + x,
@@ -776,7 +775,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let queue = [];          // countries still to ask
   let current = null;      // the country being asked now
   let score = 0, total = 0;
-  let secondsLeft = 0, timerId = null;
+  let roundSeconds = 0, secondsLeft = 0, timerId = null;
   let waiting = false;     // true while showing the answer before the next question
 
 
@@ -805,7 +804,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const count = countries.filter(x => inContinent(x, code)).length;
       const btn = contBox.append("button").attr("data-code", code)
         .on("click", () => { chosenContinent = code; markChosen(); });
-      btn.append("span").html(t().continents[code] + "<small>" + t().countries(count) + "</small>");
+      btn.append("span").html(t().continents[code] + "<small>" + t().countries(count) + " · " + CONTINENTS[code].minutes + " min</small>");
       btn.append("svg").attr("viewBox", CONTINENTS[code].world ? "0 0 92 46" : "0 0 46 38").append("path").attr("d", continentOutline(code));
     });
     const subjBox = d3.select("#subjectChoices").html("");
@@ -871,7 +870,8 @@ document.addEventListener("DOMContentLoaded", () => {
     queue = d3.shuffle(countries.filter(c => inContinent(c, chosenContinent)));
     total = queue.length;
     score = 0;
-    secondsLeft = ROUND_SECONDS;
+    roundSeconds = CONTINENTS[chosenContinent].minutes * 60;
+    secondsLeft = roundSeconds;
     showScreen("game");
     drawMap(chosenContinent);
     const m = MODES[chosenMode];
@@ -915,8 +915,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (name === current.name) {
       markResult(true, t().correct);
     } else {
-      paint(name, "wrong");
-      setTimeout(() => paint(name, "wrong", false), PAUSE_AFTER_WRONG);
+      paint(name, "clicked");   // a brief red flash where you clicked
+      setTimeout(() => paint(name, "clicked", false), PAUSE_AFTER_WRONG);
       markResult(false, t().wrongClick(nameOf(countryByName[name]), nameOf(current)));
     }
   }
@@ -969,12 +969,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (right) score++;
     const m = MODES[chosenMode];
     paint(current.name, "target", false);
-    // Click modes show the correct country in green (the red one is where you clicked);
-    // type modes colour the asked country green or red.
-    paint(current.name, right || m.click ? "right" : "wrong");
+    // Right answers stay green, missed ones red, for the rest of the round.
+    // In click modes a miss first flashes the correct country orange, so you can see
+    // where it was (the red one during that moment is where you clicked).
+    const asked = current.name;
+    const revealFirst = !right && m.click;
+    paint(asked, right ? "right" : revealFirst ? "reveal" : "wrong");
     setFeedback(message, right ? "ok" : "bad");
     updateStats();
-    setTimeout(nextQuestion, right ? PAUSE_AFTER_RIGHT : PAUSE_AFTER_WRONG);
+    setTimeout(() => {
+      if (revealFirst) { paint(asked, "reveal", false); paint(asked, "wrong"); }
+      nextQuestion();
+    }, right ? PAUSE_AFTER_RIGHT : PAUSE_AFTER_WRONG);
   }
 
   function tick() {
@@ -987,7 +993,7 @@ document.addEventListener("DOMContentLoaded", () => {
     clearInterval(timerId);
     current = null;
     waiting = true;
-    const used = ROUND_SECONDS - Math.max(secondsLeft, 0);
+    const used = roundSeconds - Math.max(secondsLeft, 0);
     d3.select("#endTitle").text(timeUp ? t().timeUp : t().done);
     d3.select("#endScore").text(score + " / " + total);
     d3.select("#endPct").text(t().pct(total ? Math.round(100 * score / total) : 0));
