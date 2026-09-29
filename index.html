@@ -98,6 +98,8 @@
   #continentChoices svg { flex-shrink: 0; width: 46px; height: 38px; }
   #continentChoices svg path { fill: #dcd7cc; transition: fill .15s; }
   #continentChoices button:hover svg path { fill: #cdc7ba; }
+  #continentChoices button[data-code="WD"] { grid-column: 1 / -1; }
+  #continentChoices button[data-code="WD"] svg { width: 92px; height: 46px; }
   #continentChoices button.chosen { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
   #continentChoices button.chosen small { color: var(--accent); }
   #continentChoices button.chosen svg path { fill: var(--accent); opacity: .55; }
@@ -271,7 +273,7 @@
     <div class="stats">
       <span class="stat"><span data-t="score"></span> <b id="score">0</b></span>
       <span class="stat"><span data-t="left"></span> <b id="left">0</b></span>
-      <span class="stat" id="timer"><span data-t="time"></span> <b id="time">10:00</b></span>
+      <span class="stat" id="timer"><span data-t="time"></span> <b id="time">20:00</b></span>
     </div>
     <button id="skipBtn" data-t="skip"></button>
     <button id="quitBtn" data-t="menu"></button>
@@ -311,7 +313,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Settings ----------
-  const ROUND_SECONDS = 10 * 60;   // 10 minutes per round
+  const ROUND_SECONDS = 20 * 60;   // 20 minutes per round
   const PAUSE_AFTER_RIGHT = 700;   // milliseconds before the next question
   const PAUSE_AFTER_WRONG = 1800;
   const W = 1000, H = 620;         // drawing size of the map
@@ -325,6 +327,7 @@ document.addEventListener("DOMContentLoaded", () => {
     NA: { box: [-170, 7, -52, 72] },
     SA: { box: [-92, -56, -32, 13] },
     OC: { box: [110, -48, 195, 15] },
+    WD: { world: true },   // the whole world: every country from every continent
   };
 
   // How each mode works:
@@ -353,12 +356,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const TEXT = {
     en: {
       title: "Geography Game",
-      sub: "Pick a continent and what to practise. Each round lasts 10 minutes.",
+      sub: "Pick a continent and play. Each game lasts 20 minutes.",
       continent: "Continent", topic: "Topic", answerBy: "Answer by", start: "Start",
       subjects: { country: "Countries", capital: "Capitals", flag: "Flags" },
       methods: { click: "Clicking the map", type: "Typing" },
       countries: n => n + " countries",
-      continents: { EU: "Europe", AS: "Asia", AF: "Africa", NA: "North America", SA: "South America", OC: "Oceania" },
+      continents: { EU: "Europe", AS: "Asia", AF: "Africa", NA: "North America", SA: "South America", OC: "Oceania", WD: "World" },
       modes: {
         find:        ["Find the country", "A country's name is shown — find it on the map."],
         nameCountry: ["Name the country", "A country is highlighted — type its name."],
@@ -385,17 +388,17 @@ document.addEventListener("DOMContentLoaded", () => {
       wrongIs: x => "✗ It is " + x,
       wrongCapital: (c, cap) => "✗ The capital of " + c + " is " + cap,
       skipped: x => "Skipped — it was " + x,
-      done: "Round complete", timeUp: "Time's up", timeWord: "time", again: "Play again", pct: p => p + "% correct",
-      insets: { NA: "Eastern Caribbean" },
+      done: "Game complete", timeUp: "Time's up", timeWord: "time", again: "Play again", pct: p => p + "% correct",
+      insets: { NA: "Eastern Caribbean", WD: "Eastern Caribbean" },
     },
     lv: {
       title: "Ģeogrāfijas spēle",
-      sub: "Izvēlies kontinentu un ko trenēt. Katra kārta ilgst 10 minūtes.",
+      sub: "Izvēlies kontinentu un spēlē. Katra spēle ilgst 20 minūtes.",
       continent: "Kontinents", topic: "Tēma", answerBy: "Kā atbildēt", start: "Sākt",
       subjects: { country: "Valstis", capital: "Galvaspilsētas", flag: "Karogi" },
       methods: { click: "Klikšķinot kartē", type: "Rakstot" },
       countries: n => n + (n % 10 === 1 && n % 100 !== 11 ? " valsts" : " valstis"),
-      continents: { EU: "Eiropa", AS: "Āzija", AF: "Āfrika", NA: "Ziemeļamerika", SA: "Dienvidamerika", OC: "Okeānija" },
+      continents: { EU: "Eiropa", AS: "Āzija", AF: "Āfrika", NA: "Ziemeļamerika", SA: "Dienvidamerika", OC: "Okeānija", WD: "Pasaule" },
       modes: {
         find:        ["Atrodi valsti",             "Redzams valsts nosaukums — atrodi to kartē."],
         nameCountry: ["Nosauc valsti",             "Kartē iezīmēta valsts — ieraksti tās nosaukumu."],
@@ -414,7 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       placeholder: "Ieraksti atbildi…",
       score: "Punkti", left: "Atlikušas", time: "Laiks", skip: "Izlaist", menu: "Izvēlne",
-      hint: "Ritini vai savelc, lai tuvinātu · velc, lai pārvietotu · mazās valstis ir apļi",
+      hint: "Ritini, lai tuvinātu · velc, lai pārvietotu · mazās valstis ir apļi",
       zoomIn: "Tuvināt", zoomOut: "Tālināt", zoomReset: "Rādīt visu kontinentu",
       correct: "✓ Pareizi!",
       correctIs: x => "✓ Pareizi — " + x,
@@ -422,8 +425,8 @@ document.addEventListener("DOMContentLoaded", () => {
       wrongIs: x => "✗ Pareizā atbilde: " + x,
       wrongCapital: (c, cap) => "✗ " + c + ": galvaspilsēta ir " + cap,
       skipped: x => "Izlaists — pareizā atbilde: " + x,
-      done: "Kārta pabeigta", timeUp: "Laiks beidzies", timeWord: "laiks", again: "Spēlēt vēlreiz", pct: p => p + "% pareizi",
-      insets: { NA: "Mazās Antiļu salas" },
+      done: "Spēle pabeigta", timeUp: "Laiks beidzies", timeWord: "laiks", again: "Spēlēt vēlreiz", pct: p => p + "% pareizi",
+      insets: { NA: "Mazās Antiļas", WD: "Mazās Antiļas" },
     },
   };
 
@@ -440,6 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
   //   at:   where the box goes on the map [x, y, width, height] (map is 1000 × 620)
   const INSETS = {
     NA: { area: [-64.2, 9.9, -58.6, 18.3], at: [842, 146, 146, 236] },
+    WD: { area: [-64.2, 9.9, -58.6, 18.3], at: [352, 176, 78, 104], titleAbove: true },
   };
 
   // Tuvalu is too small to be in the map data, so it gets a dot at Funafuti.
@@ -471,7 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .normalize("NFD").replace(/[̀-ͯ]/g, "")  // é → e, ș → s …
       .replace(/&/g, " and ")
       .replace(/[’'`.]/g, "")                           // N'Djamena → ndjamena
-      .replace(/[-,()]/g, " ")
+      .replace(/[-–—,()]/g, " ")
       .replace(/\bsaint\b/g, "st")
       .replace(/^the\s+/, "")
       .replace(/\s+/g, "");                             // ignore spaces entirely
@@ -539,20 +543,34 @@ document.addEventListener("DOMContentLoaded", () => {
   let projection, path;
   let countryPaths, dots;
 
-  // Draws the whole map, centred on one continent.
-  function drawMap(continentCode) {
-    const [west, south, east, north] = CONTINENTS[continentCode].box;
-    const midLon = (west + east) / 2, midLat = (south + north) / 2;
+  // Is this country part of the chosen continent? ("World" includes every country.)
+  const inContinent = (c, code) => code === "WD" || c.continents.includes(code);
 
-    // A globe-like projection turned to face the continent.
-    projection = d3.geoAzimuthalEqualArea().rotate([-midLon, -midLat]).clipAngle(90);
-    // Fit the continent's box (sampled along its edges) into the drawing area.
-    const edge = [];
-    for (let i = 0; i <= 10; i++) {
-      const lon = west + (east - west) * i / 10, lat = south + (north - south) * i / 10;
-      edge.push([lon, south], [lon, north], [west, lat], [east, lat]);
+  let dotRadius = 6;   // size of the circles for small countries, on screen
+  let tinyArea = 60;   // countries smaller than this on the map get a circle
+
+  // Draws the whole map, centred on one continent (or the whole world).
+  function drawMap(continentCode) {
+    if (CONTINENTS[continentCode].world) {
+      // A flat world map with rounded edges.
+      projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: "Sphere" });
+      dotRadius = 4;
+      tinyArea = 12;
+    } else {
+      const [west, south, east, north] = CONTINENTS[continentCode].box;
+      const midLon = (west + east) / 2, midLat = (south + north) / 2;
+      // A globe-like projection turned to face the continent.
+      projection = d3.geoAzimuthalEqualArea().rotate([-midLon, -midLat]).clipAngle(90);
+      // Fit the continent's box (sampled along its edges) into the drawing area.
+      const edge = [];
+      for (let i = 0; i <= 10; i++) {
+        const lon = west + (east - west) * i / 10, lat = south + (north - south) * i / 10;
+        edge.push([lon, south], [lon, north], [west, lat], [east, lat]);
+      }
+      projection.fitExtent([[10, 10], [W - 10, H - 10]], { type: "MultiPoint", coordinates: edge });
+      dotRadius = 6;
+      tinyArea = 60;
     }
-    projection.fitExtent([[10, 10], [W - 10, H - 10]], { type: "MultiPoint", coordinates: edge });
     path = d3.geoPath(projection);
 
     zoomLayer.selectAll("*").remove();
@@ -563,7 +581,7 @@ document.addEventListener("DOMContentLoaded", () => {
     zoomLayer.append("path").attr("class", "coast-glow-thin").attr("d", coast);
 
     const inRound = f => countryByName[f.properties.name] &&
-                         countryByName[f.properties.name].continents.includes(continentCode);
+                         inContinent(countryByName[f.properties.name], continentCode);
 
     // Country shapes
     countryPaths = zoomLayer.selectAll("path.country")
@@ -578,12 +596,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Circles for countries too small to click (Vatican, Caribbean islands, Pacific islands …)
     const tiny = features.filter(f => inRound(f) &&
-      (f.geometry.type === "Point" || path.area(f) < 60));
+      (f.geometry.type === "Point" || path.area(f) < tinyArea));
     dots = zoomLayer.selectAll("circle.dot")
       .data(tiny)
       .join("circle")
       .attr("class", "dot play")
-      .attr("r", 6)
+      .attr("r", dotRadius)
       .attr("transform", f => "translate(" + projection(dotPosition(f)) + ")")
       .on("click", (event, f) => onMapClick(f.properties.name));
 
@@ -602,7 +620,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!cfg) return;
     const [west, south, east, north] = cfg.area;
     const [x, y, w, h] = cfg.at;
-    const top = 22;   // room for the title
+    const top = cfg.titleAbove ? 6 : 22;   // room for the title (unless it sits above the box)
 
     // Its own projection, much closer in, fitted into the box.
     const edge = [];
@@ -652,11 +670,12 @@ document.addEventListener("DOMContentLoaded", () => {
       .data(tinyHere)
       .join("circle")
       .attr("class", "dot play")
-      .attr("r", 5.5)
+      .attr("r", dotRadius === 6 ? 5.5 : 4.5)
       .attr("transform", f => "translate(" + proj(dotPosition(f)) + ")")
       .on("click", (event, f) => onMapClick(f.properties.name));
 
-    g.append("text").attr("class", "inset-title").attr("x", x + 12).attr("y", y + 16).text(t().insets[continentCode]);
+    g.append("text").attr("class", "inset-title").attr("x", cfg.titleAbove ? x + 2 : x + 12)
+      .attr("y", cfg.titleAbove ? y - 6 : y + 16).text(t().insets[continentCode]);
 
     inset = { g, lines, sourceFrame, shapes, dots: insetDots,
               names: new Set(inside.map(f => f.properties.name)),
@@ -716,7 +735,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .on("zoom", event => {
       zoomLayer.attr("transform", event.transform);
       // Keep circles the same size on screen however far you zoom.
-      if (dots) dots.attr("r", 6 / event.transform.k);
+      if (dots) dots.attr("r", dotRadius / event.transform.k);
       updateInset(event.transform);
     });
   svg.call(zoom).on("dblclick.zoom", null);
@@ -783,11 +802,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildMenu() {
     const contBox = d3.select("#continentChoices").html("");
     Object.keys(CONTINENTS).forEach(code => {
-      const count = countries.filter(x => x.continents.includes(code)).length;
+      const count = countries.filter(x => inContinent(x, code)).length;
       const btn = contBox.append("button").attr("data-code", code)
         .on("click", () => { chosenContinent = code; markChosen(); });
       btn.append("span").html(t().continents[code] + "<small>" + t().countries(count) + "</small>");
-      btn.append("svg").attr("viewBox", "0 0 46 38").append("path").attr("d", continentOutline(code));
+      btn.append("svg").attr("viewBox", CONTINENTS[code].world ? "0 0 92 46" : "0 0 46 38").append("path").attr("d", continentOutline(code));
     });
     const subjBox = d3.select("#subjectChoices").html("");
     Object.keys(MODE_OF).forEach(code => subjBox.append("button").attr("data-code", code)
@@ -810,17 +829,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const outlineCache = {};
   function continentOutline(code) {
     if (outlineCache[code]) return outlineCache[code];
+    const members = WORLD.objects.countries.geometries.filter(g => {
+      const c = countryByName[g.properties.name];
+      return c && inContinent(c, code);
+    });
+    const shape = topojson.merge(WORLD, members);
+    if (CONTINENTS[code].world) {
+      const wproj = d3.geoNaturalEarth1().fitExtent([[1, 1], [91, 45]], { type: "Sphere" });
+      return (outlineCache[code] = d3.geoPath(wproj)(shape));
+    }
     const [west, south, east, north] = CONTINENTS[code].box;
     const edge = [];
     for (let i = 0; i <= 10; i++) {
       const lon = west + (east - west) * i / 10, lat = south + (north - south) * i / 10;
       edge.push([lon, south], [lon, north], [west, lat], [east, lat]);
     }
-    const members = WORLD.objects.countries.geometries.filter(g => {
-      const c = countryByName[g.properties.name];
-      return c && c.continents.includes(code);
-    });
-    const shape = topojson.merge(WORLD, members);
     const proj = d3.geoAzimuthalEqualArea().rotate([-(west + east) / 2, -(south + north) / 2])
       .fitExtent([[1, 1], [45, 37]], shape).clipExtent([[0, 0], [46, 38]]);
     // Russia reaches far beyond Europe, and Oceania's islands spread across the Pacific,
@@ -845,7 +868,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Playing a round ----------
   function startRound() {
-    queue = d3.shuffle(countries.filter(c => c.continents.includes(chosenContinent)));
+    queue = d3.shuffle(countries.filter(c => inContinent(c, chosenContinent)));
     total = queue.length;
     score = 0;
     secondsLeft = ROUND_SECONDS;
@@ -1214,11 +1237,11 @@ const COUNTRIES = [
 // Answers are checked without garumzīmes and capitals, so "riga" counts for "Rīga".
 const LATVIAN = {
   "Albania": ["Albānija","Tirāna",[],[]],
-  "Andorra": ["Andora","Andora la Velja",[],["Andoravelja"]],
+  "Andorra": ["Andora","Andora la Velja",[],[]],
   "Austria": ["Austrija","Vīne",[],[]],
   "Belarus": ["Baltkrievija","Minska",[],[]],
   "Belgium": ["Beļģija","Brisele",[],[]],
-  "Bosnia and Herzegovina": ["Bosnija un Hercegovina","Sarajeva",["Bosnija"],[]],
+  "Bosnia and Herzegovina": ["Bosnija un Hercegovina","Sarajeva",[],[]],
   "Bulgaria": ["Bulgārija","Sofija",[],[]],
   "Croatia": ["Horvātija","Zagreba",[],[]],
   "Czechia": ["Čehija","Prāga",["Čehijas Republika"],[]],
@@ -1232,7 +1255,7 @@ const LATVIAN = {
   "Iceland": ["Islande","Reikjavīka",[],[]],
   "Ireland": ["Īrija","Dublina",[],[]],
   "Italy": ["Itālija","Roma",[],[]],
-  "Kosovo": ["Kosova","Priština",["Kosovo"],[]],
+  "Kosovo": ["Kosova","Priština",[],[]],
   "Latvia": ["Latvija","Rīga",[],[]],
   "Liechtenstein": ["Lihtenšteina","Vaduca",[],[]],
   "Lithuania": ["Lietuva","Viļņa",[],[]],
@@ -1241,22 +1264,22 @@ const LATVIAN = {
   "Moldova": ["Moldova","Kišiņeva",[],[]],
   "Monaco": ["Monako","Monako",[],[]],
   "Montenegro": ["Melnkalne","Podgorica",[],[]],
-  "Netherlands": ["Nīderlande","Amsterdama",["Holande"],[]],
+  "Netherlands": ["Nīderlande","Amsterdama",[],[]],
   "North Macedonia": ["Ziemeļmaķedonija","Skopje",["Maķedonija"],[]],
   "Norway": ["Norvēģija","Oslo",[],[]],
   "Poland": ["Polija","Varšava",[],[]],
   "Portugal": ["Portugāle","Lisabona",[],[]],
   "Romania": ["Rumānija","Bukareste",[],[]],
-  "San Marino": ["Sanmarīno","Sanmarīno",["San Marino"],["San Marino"]],
+  "San Marino": ["Sanmarīno","Sanmarīno",[],[]],
   "Serbia": ["Serbija","Belgrada",[],[]],
   "Slovakia": ["Slovākija","Bratislava",[],[]],
   "Slovenia": ["Slovēnija","Ļubļana",[],[]],
   "Spain": ["Spānija","Madride",[],[]],
   "Sweden": ["Zviedrija","Stokholma",[],[]],
   "Switzerland": ["Šveice","Berne",[],[]],
-  "Ukraine": ["Ukraina","Kijiva",[],[]],
-  "United Kingdom": ["Apvienotā Karaliste","Londona",["Lielbritānija","AK"],[]],
-  "Vatican City": ["Vatikāns","Vatikāns",["Vatikāna Pilsētvalsts"],[]],
+  "Ukraine": ["Ukraina","Kijiva",[],["Kijeva"]],
+  "United Kingdom": ["Lielbritānija","Londona",["Apvienotā Karaliste"],[]],
+  "Vatican City": ["Vatikāns","Vatikāns",["Svētais Krēsls","Vatikāna Pilsētvalsts"],[]],
   "Russia": ["Krievija","Maskava",[],[]],
   "Turkey": ["Turcija","Ankara",[],[]],
   "Kazakhstan": ["Kazahstāna","Astana",[],[]],
@@ -1265,42 +1288,42 @@ const LATVIAN = {
   "Armenia": ["Armēnija","Erevāna",[],[]],
   "Cyprus": ["Kipra","Nikosija",[],[]],
   "Afghanistan": ["Afganistāna","Kabula",[],[]],
-  "Bahrain": ["Bahreina","Manama",[],[]],
+  "Bahrain": ["Bahreina","Manāma",[],[]],
   "Bangladesh": ["Bangladeša","Daka",[],[]],
-  "Bhutan": ["Butāna","Thimphu",[],["Timpu"]],
-  "Brunei": ["Bruneja","Bandarseribegavana",[],["Bandar Seri Begavana"]],
+  "Bhutan": ["Butāna","Timpu",[],[]],
+  "Brunei": ["Bruneja","Bandarseribegavana",[],[]],
   "Cambodia": ["Kambodža","Pnompeņa",[],[]],
   "China": ["Ķīna","Pekina",[],[]],
-  "India": ["Indija","Ņūdeli",[],["Deli"]],
+  "India": ["Indija","Jaundeli",[],["Deli"]],
   "Iran": ["Irāna","Teherāna",[],[]],
   "Iraq": ["Irāka","Bagdāde",[],[]],
   "Israel": ["Izraēla","Jeruzaleme",[],[]],
   "Japan": ["Japāna","Tokija",[],[]],
   "Jordan": ["Jordānija","Ammāna",[],[]],
   "Kuwait": ["Kuveita","Kuveita",[],[]],
-  "Kyrgyzstan": ["Kirgizstāna","Biškeka",["Kirgizija"],[]],
+  "Kyrgyzstan": ["Kirgizstāna","Biškeka",[],[]],
   "Laos": ["Laosa","Vjenčana",[],[]],
   "Lebanon": ["Libāna","Beirūta",[],[]],
   "Malaysia": ["Malaizija","Kualalumpura",[],[]],
-  "Maldives": ["Maldīvija","Male",["Maldīvu salas"],[]],
+  "Maldives": ["Maldīvija","Male",[],[]],
   "Mongolia": ["Mongolija","Ulanbatora",[],[]],
-  "Myanmar": ["Mjanma","Neipjido",["Birma"],[]],
+  "Myanmar": ["Mjanma","Nepjido",["Birma"],[]],
   "Nepal": ["Nepāla","Katmandu",[],[]],
   "North Korea": ["Ziemeļkoreja","Phenjana",[],[]],
   "Oman": ["Omāna","Maskata",[],[]],
-  "Pakistan": ["Pakistāna","Islamabada",[],[]],
-  "Palestine": ["Palestīna","Ramalla",[],[]],
+  "Pakistan": ["Pakistāna","Islāmābāda",[],[]],
+  "Palestine": ["Palestīna","Rāmalla",[],[]],
   "Philippines": ["Filipīnas","Manila",[],[]],
   "Qatar": ["Katara","Doha",[],[]],
   "Saudi Arabia": ["Saūda Arābija","Rijāda",[],[]],
   "Singapore": ["Singapūra","Singapūra",[],[]],
   "South Korea": ["Dienvidkoreja","Seula",[],[]],
-  "Sri Lanka": ["Šrilanka","Šrī Džajavardanapura Kote",[],["Kote"]],
+  "Sri Lanka": ["Šrilanka","Šrī Džajavardenepura Kote",[],["Kolombo"]],
   "Syria": ["Sīrija","Damaska",[],[]],
-  "Taiwan": ["Taivāna","Taibei",[],[]],
+  "Taiwan": ["Taivāna","Taibeja",[],[]],
   "Tajikistan": ["Tadžikistāna","Dušanbe",[],[]],
   "Thailand": ["Taizeme","Bangkoka",[],[]],
-  "Timor-Leste": ["Austrumtimora","Dili",["Timora-Leste"],[]],
+  "Timor-Leste": ["Austrumtimora","Dili",[],[]],
   "Turkmenistan": ["Turkmenistāna","Ašgabata",[],[]],
   "United Arab Emirates": ["Apvienotie Arābu Emirāti","Abū Dabī",["AAE"],[]],
   "Uzbekistan": ["Uzbekistāna","Taškenta",[],[]],
@@ -1317,20 +1340,20 @@ const LATVIAN = {
   "Cameroon": ["Kamerūna","Jaunde",[],[]],
   "Central African Republic": ["Centrālāfrikas Republika","Bangi",["CĀR"],[]],
   "Chad": ["Čada","Ndžamena",[],[]],
-  "Comoros": ["Komoras","Moroni",["Komoru salas"],[]],
+  "Comoros": ["Komoras","Moroni",["Komoru Salas"],[]],
   "Republic of the Congo": ["Kongo Republika","Brazavila",["Kongo"],[]],
-  "DR Congo": ["Kongo Demokrātiskā Republika","Kinšasa",["KDR"],[]],
-  "Djibouti": ["Džibutija","Džibutija",[],[]],
+  "DR Congo": ["Kongo Demokrātiskā Republika","Kinšasa",["Kongo DR"],[]],
+  "Djibouti": ["Džibutija","Džibuti",[],[]],
   "Equatorial Guinea": ["Ekvatoriālā Gvineja","Malabo",[],[]],
-  "Eritrea": ["Eritreja","Asmara",[],[]],
-  "Eswatini": ["Esvatini","Mbabane",["Svazilenda"],[]],
+  "Eritrea": ["Eritreja","Asmera",[],[]],
+  "Eswatini": ["Svatini","Mbabane",["Svazilenda"],["Lobamba"]],
   "Ethiopia": ["Etiopija","Adisabeba",[],[]],
   "Gabon": ["Gabona","Librevila",[],[]],
   "Gambia": ["Gambija","Bandžula",[],[]],
   "Ghana": ["Gana","Akra",[],[]],
   "Guinea": ["Gvineja","Konakri",[],[]],
-  "Guinea-Bissau": ["Gvineja-Bisava","Bisava",[],[]],
-  "Ivory Coast": ["Kotdivuāra","Jamusukro",["Ziloņkaula Krasts"],[]],
+  "Guinea-Bissau": ["Gvineja–Bisava","Bisava",[],[]],
+  "Ivory Coast": ["Kotdivuāra","Jamusukro",[],[]],
   "Kenya": ["Kenija","Nairobi",[],[]],
   "Lesotho": ["Lesoto","Maseru",[],[]],
   "Liberia": ["Libērija","Monrovija",[],[]],
@@ -1339,19 +1362,19 @@ const LATVIAN = {
   "Malawi": ["Malāvija","Lilongve",[],[]],
   "Mali": ["Mali","Bamako",[],[]],
   "Mauritania": ["Mauritānija","Nuakšota",[],[]],
-  "Mauritius": ["Maurīcija","Portluija",[],[]],
+  "Mauritius": ["Maurīcija","Portluī",[],[]],
   "Morocco": ["Maroka","Rabāta",[],[]],
   "Mozambique": ["Mozambika","Maputu",[],[]],
   "Namibia": ["Namībija","Vindhuka",[],[]],
   "Niger": ["Nigēra","Niameja",[],[]],
   "Nigeria": ["Nigērija","Abudža",[],[]],
   "Rwanda": ["Ruanda","Kigali",[],[]],
-  "Sao Tome and Principe": ["Santome un Prinsipi","Santome",[],[]],
-  "Senegal": ["Senegāla","Dakara",[],[]],
-  "Seychelles": ["Seišelas","Viktorija",["Seišeļu salas"],[]],
+  "Sao Tome and Principe": ["Santomē un Prinsipi","Santomē",[],[]],
+  "Senegal": ["Senegāla","Dakāra",[],[]],
+  "Seychelles": ["Seišelu Salas","Viktorija",["Seišelas"],[]],
   "Sierra Leone": ["Sjerraleone","Frītauna",[],[]],
   "Somalia": ["Somālija","Mogadīšo",[],[]],
-  "South Africa": ["Dienvidāfrika","Pretorija",["Dienvidāfrikas Republika","DĀR"],[]],
+  "South Africa": ["Dienvidāfrikas Republika","Pretorija",["DĀR"],[]],
   "South Sudan": ["Dienvidsudāna","Džūba",[],[]],
   "Sudan": ["Sudāna","Hartūma",[],[]],
   "Tanzania": ["Tanzānija","Dodoma",[],[]],
@@ -1361,8 +1384,8 @@ const LATVIAN = {
   "Zambia": ["Zambija","Lusaka",[],[]],
   "Zimbabwe": ["Zimbabve","Harare",[],[]],
   "Egypt": ["Ēģipte","Kaira",[],[]],
-  "Antigua and Barbuda": ["Antigva un Barbuda","Sentdžonsa",["Antigva"],[]],
-  "Bahamas": ["Bahamas","Naso",["Bahamu salas"],[]],
+  "Antigua and Barbuda": ["Antigva un Barbuda","Sentdžonsa",[],[]],
+  "Bahamas": ["Bahamu Salas","Naso",["Bahamas"],[]],
   "Barbados": ["Barbadosa","Bridžtauna",[],[]],
   "Belize": ["Beliza","Belmopana",[],[]],
   "Canada": ["Kanāda","Otava",[],[]],
@@ -1381,11 +1404,11 @@ const LATVIAN = {
   "Panama": ["Panama","Panama",[],[]],
   "Saint Kitts and Nevis": ["Sentkitsa un Nevisa","Bastera",[],[]],
   "Saint Lucia": ["Sentlūsija","Kastri",[],[]],
-  "Saint Vincent and the Grenadines": ["Sentvinsenta un Grenadīnas","Kingstauna",["Sentvinsenta"],[]],
-  "Trinidad and Tobago": ["Trinidāda un Tobāgo","Portofspeina",["Trinidāda"],[]],
-  "United States": ["Amerikas Savienotās Valstis","Vašingtona",["ASV","Amerika"],[]],
+  "Saint Vincent and the Grenadines": ["Sentvinsenta un Grenadīnas","Kingstauna",[],[]],
+  "Trinidad and Tobago": ["Trinidāda un Tobāgo","Portofspeina",[],[]],
+  "United States": ["Amerikas Savienotās Valstis","Vašingtona",["ASV"],[]],
   "Argentina": ["Argentīna","Buenosairesa",[],[]],
-  "Bolivia": ["Bolīvija","Lapasa",[],[]],
+  "Bolivia": ["Bolīvija","Lapasa",[],["Sukre"]],
   "Brazil": ["Brazīlija","Brazilja",[],[]],
   "Chile": ["Čīle","Santjago",[],[]],
   "Colombia": ["Kolumbija","Bogota",[],[]],
@@ -1398,18 +1421,18 @@ const LATVIAN = {
   "Venezuela": ["Venecuēla","Karakasa",[],[]],
   "Australia": ["Austrālija","Kanbera",[],[]],
   "Fiji": ["Fidži","Suva",[],[]],
-  "Kiribati": ["Kiribati","Dienvidtarava",[],["Tarava"]],
+  "Kiribati": ["Kiribati","Dienvidtarava",[],["Teinainano"]],
   "Marshall Islands": ["Māršala Salas","Madžuro",[],[]],
   "Micronesia": ["Mikronēzija","Palikira",["Mikronēzijas Federatīvās Valstis"],[]],
   "Nauru": ["Nauru","Jarena",[],[]],
   "New Zealand": ["Jaunzēlande","Velingtona",[],[]],
-  "Palau": ["Palau","Ngerulmuda",[],[]],
-  "Papua New Guinea": ["Papua-Jaungvineja","Portmorsbi",[],[]],
+  "Palau": ["Palau","Melegeoka",[],[]],
+  "Papua New Guinea": ["Papua–Jaungvineja","Portmorsbija",[],[]],
   "Samoa": ["Samoa","Apija",[],[]],
   "Solomon Islands": ["Zālamana Salas","Honiara",[],[]],
   "Tonga": ["Tonga","Nukualofa",[],[]],
   "Tuvalu": ["Tuvalu","Funafuti",[],[]],
-  "Vanuatu": ["Vanuatu","Portvila",[],[]]
+  "Vanuatu": ["Vanuatu","Vila",[],[]]
 };
 </script>
 
