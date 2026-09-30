@@ -1837,6 +1837,12 @@ const COUNTRIES = [
 <script>
 // Latvian names: English name → [valsts, galvaspilsēta, citi valsts nosaukumi, citi galvaspilsētas nosaukumi]
 // Answers are checked without garumzīmes and capitals, so "riga" counts for "Rīga".
+// Sources: Valsts valodas centra Latviešu valodas ekspertu komisija, "Par pasaules valstu un teritoriju
+// nosaukumiem latviešu valodā", Latvijas Vēstnesis 2018/218.9 (vestnesis.lv/op/2018/218.9);
+// Kijiva per the commission's 2022 decision (Kijeva also accepted); Gitega is Burundi's capital since 2019.
+// Where Tēzaurs (tezaurs.lv) uses a different main form, the game shows that form and still accepts the
+// official one: Ņūdeli (Jaundeli), Timphu (Timpu), Mogadiša (Mogadīšo), Vindhūka (Vindhuka),
+// Dakara (Dakāra), Santome (Santomē), Teinainano (Dienvidtarava).
 const LATVIAN = {
   "Albania": ["Albānija","Tirāna",[],[]],
   "Andorra": ["Andora","Andora la Velja",[],[]],
@@ -1892,11 +1898,11 @@ const LATVIAN = {
   "Afghanistan": ["Afganistāna","Kabula",[],[]],
   "Bahrain": ["Bahreina","Manāma",[],[]],
   "Bangladesh": ["Bangladeša","Daka",[],[]],
-  "Bhutan": ["Butāna","Timpu",[],[]],
+  "Bhutan": ["Butāna","Timphu",[],["Timpu"]],
   "Brunei": ["Bruneja","Bandarseribegavana",[],[]],
   "Cambodia": ["Kambodža","Pnompeņa",[],[]],
   "China": ["Ķīna","Pekina",[],[]],
-  "India": ["Indija","Jaundeli",[],["Deli"]],
+  "India": ["Indija","Ņūdeli",[],["Jaundeli","Deli"]],
   "Iran": ["Irāna","Teherāna",[],[]],
   "Iraq": ["Irāka","Bagdāde",[],[]],
   "Israel": ["Izraēla","Jeruzaleme",[],[]],
@@ -1967,15 +1973,15 @@ const LATVIAN = {
   "Mauritius": ["Maurīcija","Portluī",[],[]],
   "Morocco": ["Maroka","Rabāta",[],[]],
   "Mozambique": ["Mozambika","Maputu",[],[]],
-  "Namibia": ["Namībija","Vindhuka",[],[]],
+  "Namibia": ["Namībija","Vindhūka",[],["Vindhuka"]],
   "Niger": ["Nigēra","Niameja",[],[]],
   "Nigeria": ["Nigērija","Abudža",[],[]],
   "Rwanda": ["Ruanda","Kigali",[],[]],
-  "Sao Tome and Principe": ["Santomē un Prinsipi","Santomē",[],[]],
-  "Senegal": ["Senegāla","Dakāra",[],[]],
+  "Sao Tome and Principe": ["Santome un Prinsipi","Santome",["Santomē un Prinsipi"],["Santomē"]],
+  "Senegal": ["Senegāla","Dakara",[],["Dakāra"]],
   "Seychelles": ["Seišelu Salas","Viktorija",["Seišelas"],[]],
   "Sierra Leone": ["Sjerraleone","Frītauna",[],[]],
-  "Somalia": ["Somālija","Mogadīšo",[],[]],
+  "Somalia": ["Somālija","Mogadiša",[],["Mogadīšo"]],
   "South Africa": ["Dienvidāfrikas Republika","Pretorija",["DĀR"],[]],
   "South Sudan": ["Dienvidsudāna","Džūba",[],[]],
   "Sudan": ["Sudāna","Hartūma",[],[]],
@@ -2023,7 +2029,7 @@ const LATVIAN = {
   "Venezuela": ["Venecuēla","Karakasa",[],[]],
   "Australia": ["Austrālija","Kanbera",[],[]],
   "Fiji": ["Fidži","Suva",[],[]],
-  "Kiribati": ["Kiribati","Dienvidtarava",[],["Teinainano"]],
+  "Kiribati": ["Kiribati","Teinainano",[],["Dienvidtarava"]],
   "Marshall Islands": ["Māršala Salas","Madžuro",[],[]],
   "Micronesia": ["Mikronēzija","Palikira",["Mikronēzijas Federatīvās Valstis"],[]],
   "Nauru": ["Nauru","Jarena",[],[]],
@@ -2050,7 +2056,7 @@ const LATVIAN_GENITIVE = {
   "Kongo Demokrātiskā Republika": "Kongo Demokrātiskās Republikas",
   "Ekvatoriālā Gvineja": "Ekvatoriālās Gvinejas",
   "Gvineja–Bisava": "Gvinejas–Bisavas",
-  "Santomē un Prinsipi": "Santomē un Prinsipi",
+  "Santome un Prinsipi": "Santome un Prinsipi",
   "Seišelu Salas": "Seišelu Salu",
   "Dienvidāfrikas Republika": "Dienvidāfrikas Republikas",
   "Antigva un Barbuda": "Antigvas un Barbudas",
