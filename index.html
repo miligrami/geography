@@ -233,6 +233,42 @@
   #endDetail { color: var(--muted); font-size: 13.5px; }
   #end .row { display: flex; gap: 8px; justify-content: center; margin-top: 26px; }
   #end .row button { flex: 1; }
+
+  /* Challenge a friend (end card) */
+  #challengeBox { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); text-align: left; }
+  .name-row { display: flex; gap: 8px; }
+  #playerName, #linkField {
+    font: inherit; font-size: 14px; padding: 9px 12px; border: 1px solid transparent; border-radius: 10px;
+    background: var(--field); min-width: 0;
+  }
+  #playerName { flex: 1; }
+  #playerName:focus, #linkField:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+  #challengeBtn { white-space: nowrap; }
+  #linkBox { margin-top: 10px; }
+  #linkField { width: 100%; font-size: 12.5px; color: var(--muted); }
+  #linkNote { font-size: 12.5px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  #linkNote.ok { color: #23734b; }
+  #linkNote.warn { color: #9a6a12; }
+
+  /* Result against the challenger */
+  #versus { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #versus .who { background: var(--field); border-radius: 12px; padding: 10px 12px; }
+  #versus .who.best { background: #e6f3ec; box-shadow: inset 0 0 0 1px #9ccfb4; }
+  #versus .who b { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  #versus .who span { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #versus .who small { display: block; color: var(--muted); font-size: 12.5px; }
+  #versus .verdict { grid-column: 1 / -1; font-weight: 600; margin-top: 4px; }
+
+  /* Challenge banner (menu) */
+  #challengeBanner {
+    margin: 22px 0 4px; padding: 16px 18px; border-radius: 14px;
+    background: var(--accent-soft); box-shadow: inset 0 0 0 1px #c9dbe7;
+  }
+  #cbTitle { font-family: var(--serif); font-size: 21px; font-weight: 600; }
+  #cbDetail { color: var(--muted); margin-top: 3px; font-size: 14px; }
+  .cb-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+  button.quiet:hover { color: var(--ink); background: rgba(255,255,255,.6); }
 </style>
 </head>
 
@@ -250,6 +286,16 @@
     </div>
   </div>
   <p class="sub" data-t="sub"></p>
+
+  <!-- Shown when someone opens a challenge link -->
+  <div id="challengeBanner" class="hidden">
+    <div id="cbTitle"></div>
+    <div id="cbDetail"></div>
+    <div class="cb-row">
+      <button class="primary" id="acceptBtn" data-t="accept"></button>
+      <button class="quiet" id="declineBtn" data-t="decline"></button>
+    </div>
+  </div>
 
   <h2 data-t="continent"></h2>
   <div id="continentChoices"></div>
@@ -304,9 +350,21 @@
     <div class="big" id="endScore"></div>
     <div class="pct" id="endPct"></div>
     <div id="endDetail"></div>
+    <div id="versus" class="hidden"></div>
     <div class="row">
       <button class="primary" id="againBtn" data-t="again"></button>
       <button id="menuBtn" data-t="menu"></button>
+    </div>
+    <!-- Challenge a friend: makes a link with this exact game and your result -->
+    <div id="challengeBox">
+      <div class="name-row">
+        <input id="playerName" maxlength="20" data-t-placeholder="yourName" autocomplete="off">
+        <button id="challengeBtn" data-t="challengeFriend"></button>
+      </div>
+      <div id="linkBox" class="hidden">
+        <input id="linkField" readonly>
+        <div id="linkNote"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -319,6 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Settings ----------
   const PAUSE_AFTER_RIGHT = 700;   // milliseconds before the next question
+  const PAUSE_AFTER_RIGHT_CAPITAL = 1600;   // longer in capital modes, to read "Copenhagen is the capital of Denmark"
   const PAUSE_AFTER_WRONG = 1800;
   const W = 1000, H = 620;         // drawing size of the map
 
@@ -377,7 +436,7 @@ document.addEventListener("DOMContentLoaded", () => {
       questions: {
         find:        c => "Click: " + nameOf(c),
         nameCountry: c => "Which country is highlighted?",
-        nameCapital: c => "What is the capital of " + nameOf(c) + "?",
+        nameCapital: c => "What is the capital of " + theName(c) + "?",
         findCapital: c => "Which country has the capital " + capitalOf(c) + "?",
         findFlag:    c => "Click the country with this flag",
         nameFlag:    c => "Which country has this flag?",
@@ -390,10 +449,20 @@ document.addEventListener("DOMContentLoaded", () => {
       correctIs: x => "✓ Correct — " + x,
       wrongClick: (clicked, answer) => "✗ That was " + clicked + ". " + answer + " is shown in orange.",
       wrongIs: x => "✗ It is " + x,
-      wrongCapital: (c, cap) => "✗ The capital of " + c + " is " + cap,
+      wrongCapital: c => "✗ The capital of " + theName(c) + " is " + c.capital + ".",
+      capitalRight: c => "✓ Correct! " + c.capital + " is the capital of " + theName(c) + ".",
       skipped: x => "Skipped — it was " + x,
       done: "Game complete", timeUp: "Time's up", timeWord: "time", again: "Play again", pct: p => p + "% correct",
       insets: { NA: "Eastern Caribbean", WD: "Eastern Caribbean" },
+      yourName: "Your name", challengeFriend: "Challenge a friend", someone: "A friend",
+      shareText: "Can you beat my score in the Geography Game?",
+      linkCopied: "Link copied — send it to a friend.",
+      linkManual: "Copy this link and send it to a friend.",
+      linkLocal: "Heads up: this link only works from the online version of the game (your github.io address). Open the game there and make the link again.",
+      challenges: n => n + " challenges you!",
+      accept: "Accept the challenge", decline: "Play something else",
+      vs: n => "vs " + n, you: "You",
+      win: "You win!", lose: n => n + " wins this time.", draw: "It's a draw!",
     },
     lv: {
       title: "Ģeogrāfijas spēle",
@@ -414,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
       questions: {
         find:        c => "Noklikšķini: " + nameOf(c),
         nameCountry: c => "Kura valsts ir iezīmēta?",
-        nameCapital: c => nameOf(c) + ": kāda ir galvaspilsēta?",
+        nameCapital: c => "Kāda ir " + genitive(c) + " galvaspilsēta?",
         findCapital: c => "Kurai valstij galvaspilsēta ir " + capitalOf(c) + "?",
         findFlag:    c => "Noklikšķini uz valsts ar šo karogu",
         nameFlag:    c => "Kurai valstij ir šis karogs?",
@@ -427,19 +496,41 @@ document.addEventListener("DOMContentLoaded", () => {
       correctIs: x => "✓ Pareizi — " + x,
       wrongClick: (clicked, answer) => "✗ Tā ir " + clicked + ". Pareizā atbilde — " + answer + " (oranžā krāsā).",
       wrongIs: x => "✗ Pareizā atbilde: " + x,
-      wrongCapital: (c, cap) => "✗ " + c + ": galvaspilsēta ir " + cap,
+      wrongCapital: c => "✗ " + genitive(c) + " galvaspilsēta ir " + c.lvCapital + ".",
+      capitalRight: c => "✓ Pareizi! " + c.lvCapital + " ir " + genitive(c) + " galvaspilsēta.",
       skipped: x => "Izlaists — pareizā atbilde: " + x,
       done: "Spēle pabeigta", timeUp: "Laiks beidzies", timeWord: "laiks", again: "Spēlēt vēlreiz", pct: p => p + "% pareizi",
       insets: { NA: "Mazās Antiļas", WD: "Mazās Antiļas" },
+      yourName: "Tavs vārds", challengeFriend: "Izaicini draugu", someone: "Draugs",
+      shareText: "Vai vari pārspēt manu rezultātu Ģeogrāfijas spēlē?",
+      linkCopied: "Saite nokopēta — nosūti to draugam.",
+      linkManual: "Nokopē šo saiti un nosūti draugam.",
+      linkLocal: "Uzmanību: šī saite darbojas tikai spēles tiešsaistes versijā (tavā github.io adresē). Atver spēli tur un izveido saiti vēlreiz.",
+      challenges: n => n + " tevi izaicina!",
+      accept: "Pieņemt izaicinājumu", decline: "Spēlēt ko citu",
+      vs: n => "pret " + n, you: "Tu",
+      win: "Tu uzvarēji!", lose: n => n + " šoreiz uzvarēja.", draw: "Neizšķirts!",
     },
   };
 
   // The chosen language is remembered in this browser (if the browser allows it).
   let lang = "en";
-  try { if (localStorage.getItem("geoLang") === "lv") lang = "lv"; } catch (e) {}
+  let savedLang = null;
+  try { savedLang = localStorage.getItem("geoLang"); } catch (e) {}
+  if (savedLang === "lv") lang = "lv";
   const t = () => TEXT[lang];
   const nameOf = c => lang === "lv" ? c.lvName : c.name;
   const capitalOf = c => lang === "lv" ? c.lvCapital : c.capital;
+  // "the Netherlands" (English) / "Nīderlandes" (Latvian genitive), for capital sentences.
+  const theName = c => (ENGLISH_WITH_THE.includes(c.name) ? "the " : "") + c.name;
+  function genitive(c) {
+    const n = c.lvName;
+    if (n in LATVIAN_GENITIVE) return LATVIAN_GENITIVE[n];
+    if (n.endsWith("as")) return n.slice(0, -2) + "u";   // Filipīnas → Filipīnu
+    if (n.endsWith("s")) return n.slice(0, -1) + "a";    // Vatikāns → Vatikāna
+    if (n.endsWith("a") || n.endsWith("e")) return n + "s";   // Dānija → Dānijas, Šveice → Šveices
+    return n;                                             // Peru, Togo, Monako … stay the same
+  }
 
   // Close-up boxes for crowded groups of small islands. Each box sits in empty ocean,
   // and a thin frame on the map shows which area it enlarges. It hides when you zoom in.
@@ -893,6 +984,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-t-title]").forEach(el => (el.title = t()[el.dataset.tTitle]));
     d3.selectAll("#langChoices button").classed("chosen", function () { return this.dataset.lang === lang; });
     buildMenu();
+    showChallengeBanner();
   }
   d3.selectAll("#langChoices button").on("click", function () {
     lang = this.dataset.lang;
@@ -969,9 +1061,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 
+  // ---------- Question order ----------
+  // Every round shuffles its questions from a "seed" number. The same seed always gives the
+  // same order, which is what lets a challenge link replay exactly the same game.
+  function seededRandom(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let r = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      r = r + Math.imul(r ^ r >>> 7, 61 | r) ^ r;
+      return ((r ^ r >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const newSeed = () => Math.floor(Math.random() * 4294967296);
+  let roundSeed = 0;
+
+
   // ---------- Playing a round ----------
-  function startRound() {
-    queue = d3.shuffle(countries.filter(c => inContinent(c, chosenContinent)));
+  // seed: given when replaying a challenge; otherwise a new random order.
+  function startRound(seed) {
+    roundSeed = typeof seed === "number" ? seed : newSeed();
+    queue = d3.shuffler(seededRandom(roundSeed))(countries.filter(c => inContinent(c, chosenContinent)));
     total = queue.length;
     score = 0;
     roundSeconds = CONTINENTS[chosenContinent].minutes * 60;
@@ -982,7 +1091,8 @@ document.addEventListener("DOMContentLoaded", () => {
     d3.select("#map").classed("clickable", m.click);
     d3.select("#answerForm").classed("hidden", m.click);
     d3.select("#flagCard").classed("hidden", !m.flag);
-    d3.select("#modeLabel").text(t().continents[chosenContinent] + " · " + t().modes[chosenMode][0]);
+    d3.select("#modeLabel").text(t().continents[chosenContinent] + " · " + t().modes[chosenMode][0] +
+      (activeChallenge ? " · " + t().vs(activeChallenge.n) + " " + activeChallenge.r + "/" + total : ""));
 
     clearInterval(timerId);
     timerId = setInterval(tick, 1000);
@@ -1017,7 +1127,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function onMapClick(name) {
     if (!current || waiting || !MODES[chosenMode].click) return;
     if (name === current.name) {
-      markResult(true, t().correct);
+      markResult(true, chosenMode === "findCapital" ? t().capitalRight(current) : t().correct);
     } else {
       paint(name, "clicked");   // a brief red flash where you clicked
       setTimeout(() => paint(name, "clicked", false), PAUSE_AFTER_WRONG);
@@ -1051,13 +1161,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!typed.trim()) return;
     const kind = MODES[chosenMode].answer;
     if (isCorrect(typed, goodAnswers(current, kind), ALL[kind][lang])) return answerRight();
-    markResult(false, kind === "capital" ? t().wrongCapital(nameOf(current), capitalOf(current))
+    markResult(false, kind === "capital" ? t().wrongCapital(current)
                                          : t().wrongIs(nameOf(current)));
   });
   function answerRight() {
     const kind = MODES[chosenMode].answer;
     document.getElementById("answer").classList.add("ok");
-    markResult(true, t().correctIs(kind === "capital" ? capitalOf(current) : nameOf(current)));
+    markResult(true, kind === "capital" ? t().capitalRight(current) : t().correctIs(nameOf(current)));
   }
 
   d3.select("#skipBtn").on("click", () => {
@@ -1084,7 +1194,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       if (revealFirst) { paint(asked, "reveal", false); paint(asked, "wrong"); }
       nextQuestion();
-    }, right ? PAUSE_AFTER_RIGHT : PAUSE_AFTER_WRONG);
+    }, !right ? PAUSE_AFTER_WRONG
+         : (chosenMode === "findCapital" || chosenMode === "nameCapital") ? PAUSE_AFTER_RIGHT_CAPITAL : PAUSE_AFTER_RIGHT);
   }
 
   function tick() {
@@ -1103,7 +1214,13 @@ document.addEventListener("DOMContentLoaded", () => {
     d3.select("#endPct").text(t().pct(total ? Math.round(100 * score / total) : 0));
     d3.select("#endDetail").text(
       t().continents[chosenContinent] + " · " + t().modes[chosenMode][0] + " · " + t().timeWord + " " + formatTime(used));
+    lastRound = { c: chosenContinent, m: chosenMode, s: roundSeed, r: score, t: used, total };
+    showVersus();
+    d3.select("#linkBox").classed("hidden", true);
     showScreen("end");
+    // A challenge is played once; after that the page is back to normal.
+    activeChallenge = null;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
   }
 
   function updateStats() {
@@ -1121,18 +1238,121 @@ document.addEventListener("DOMContentLoaded", () => {
     d3.select("#feedback").text(text).attr("class", kind);
   }
 
-  // ---------- Buttons ----------
-  d3.select("#startBtn").on("click", startRound);
-  d3.select("#againBtn").on("click", startRound);
-  d3.select("#menuBtn").on("click", () => showScreen("menu"));
-  d3.select("#quitBtn").on("click", () => { clearInterval(timerId); current = null; showScreen("menu"); });
+  // ---------- Challenge a friend ----------
+  // A challenge link carries: continent, mode, question-order seed, the challenger's name,
+  // score and time, and language — packed into the part of the address after "#c=".
+  let activeChallenge = null;   // the challenge being played (from a link), if any
+  let lastRound = null;         // the round that just ended (for making a link)
 
+  const pack = obj => btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unpack = str => JSON.parse(decodeURIComponent(escape(atob(str.replace(/-/g, "+").replace(/_/g, "/")))));
+
+  function readChallengeFromLink() {
+    const m = location.hash.match(/^#c=([A-Za-z0-9_-]+)$/);
+    if (!m) return null;
+    try {
+      const ch = unpack(m[1]);
+      if (!CONTINENTS[ch.c] || !MODES[ch.m] || typeof ch.s !== "number") return null;
+      ch.n = String(ch.n || "").slice(0, 20).trim();
+      ch.r = Math.max(0, parseInt(ch.r, 10) || 0);
+      ch.t = Math.max(0, parseInt(ch.t, 10) || 0);
+      return ch;
+    } catch (e) { return null; }
+  }
+
+  function showChallengeBanner() {
+    const ch = activeChallenge;
+    d3.select("#challengeBanner").classed("hidden", !ch);
+    if (!ch) return;
+    const name = ch.n || t().someone;
+    const count = countries.filter(c => inContinent(c, ch.c)).length;
+    d3.select("#cbTitle").text(t().challenges(name));
+    d3.select("#cbDetail").text(t().continents[ch.c] + " · " + t().modes[ch.m][0] + " — " +
+      ch.r + "/" + count + " · " + formatTime(ch.t));
+  }
+
+  // Result against the challenger, on the end card.
+  function showVersus() {
+    const box = d3.select("#versus").classed("hidden", !activeChallenge).html("");
+    if (!activeChallenge) return;
+    const ch = activeChallenge, me = lastRound;
+    const name = ch.n || t().someone;
+    const iWin = me.r > ch.r || (me.r === ch.r && me.t < ch.t);
+    const draw = me.r === ch.r && me.t === ch.t;
+    const card = (who, r, time, best) => box.append("div").attr("class", "who" + (best ? " best" : ""))
+      .html("<b></b><span></span><small></small>")
+      .call(d => { d.select("b").text(who); d.select("span").text(r + "/" + me.total); d.select("small").text(formatTime(time)); });
+    card(t().you, me.r, me.t, iWin && !draw);
+    card(name, ch.r, ch.t, !iWin && !draw);
+    box.append("div").attr("class", "verdict").text(draw ? t().draw : iWin ? t().win : t().lose(name));
+  }
+
+  // The player's name is remembered in this browser.
+  try { document.getElementById("playerName").value = localStorage.getItem("geoName") || ""; } catch (e) {}
+
+  d3.select("#challengeBtn").on("click", async () => {
+    if (!lastRound) return;
+    const name = document.getElementById("playerName").value.trim().slice(0, 20);
+    try { localStorage.setItem("geoName", name); } catch (e) {}
+    const data = { v: 1, c: lastRound.c, m: lastRound.m, s: lastRound.s, n: name, r: lastRound.r, t: lastRound.t, l: lang };
+    const link = location.origin + location.pathname + "#c=" + pack(data);
+    const field = document.getElementById("linkField");
+    const note = d3.select("#linkNote");
+    field.value = link;
+    d3.select("#linkBox").classed("hidden", false);
+
+    if (location.protocol === "file:") {
+      note.attr("class", "warn").text(t().linkLocal);
+      return;
+    }
+    // Phones: the normal share menu. Computers: copy to the clipboard.
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      try { await navigator.share({ title: t().title, text: t().shareText, url: link }); return; } catch (e) {}
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      note.attr("class", "ok").text(t().linkCopied);
+    } catch (e) {
+      field.select();
+      note.attr("class", "").text(t().linkManual);
+    }
+  });
+  d3.select("#linkField").on("focus", function () { this.select(); });
+
+  d3.select("#acceptBtn").on("click", () => {
+    const ch = activeChallenge;
+    chosenContinent = ch.c;
+    chosenMode = ch.m;
+    for (const [subject, byMethod] of Object.entries(MODE_OF))
+      for (const [method, mode] of Object.entries(byMethod))
+        if (mode === ch.m) { chosenSubject = subject; chosenMethod = method; }
+    markChosen();
+    startRound(ch.s);
+  });
+  d3.select("#declineBtn").on("click", () => {
+    activeChallenge = null;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    showChallengeBanner();
+  });
+
+
+  // ---------- Buttons ----------
+  d3.select("#startBtn").on("click", () => startRound());
+  d3.select("#againBtn").on("click", () => { activeChallenge = null; startRound(); });
+  d3.select("#menuBtn").on("click", () => { showChallengeBanner(); showScreen("menu"); });
+  d3.select("#quitBtn").on("click", () => { clearInterval(timerId); current = null; showChallengeBanner(); showScreen("menu"); });
+
+  // Opened from a challenge link?
+  activeChallenge = readChallengeFromLink();
+  if (activeChallenge && !savedLang && (activeChallenge.l === "lv" || activeChallenge.l === "en")) lang = activeChallenge.l;
   applyLanguage();
   showScreen("menu");
 
   // Exposed only so the game can be tested automatically; not used by the game itself.
   window.__game = { isCorrect, countries, ALL, onMapClick,
-                    get current() { return current; }, get lang() { return lang; } };
+                    get current() { return current; }, get lang() { return lang; },
+                    get lastRound() { return lastRound; }, pack, unpack };
 });
 </script>
 
@@ -1544,6 +1764,39 @@ const LATVIAN = {
   "Tuvalu": ["Tuvalu","Funafuti",[],[]],
   "Vanuatu": ["Vanuatu","Vila",[],[]]
 };
+
+// Latvian genitive ("Dānijas galvaspilsēta"), used in capital questions and answers.
+// Most names follow simple rules (…a → …as, …e → …es, …as → …u, …s → …a, others stay the same);
+// these are the ones that don't.
+const LATVIAN_GENITIVE = {
+  "Samoa": "Samoa",
+  "Bosnija un Hercegovina": "Bosnijas un Hercegovinas",
+  "Saūda Arābija": "Saūda Arābijas",
+  "Apvienotie Arābu Emirāti": "Apvienoto Arābu Emirātu",
+  "Centrālāfrikas Republika": "Centrālāfrikas Republikas",
+  "Kongo Republika": "Kongo Republikas",
+  "Kongo Demokrātiskā Republika": "Kongo Demokrātiskās Republikas",
+  "Ekvatoriālā Gvineja": "Ekvatoriālās Gvinejas",
+  "Gvineja–Bisava": "Gvinejas–Bisavas",
+  "Santomē un Prinsipi": "Santomē un Prinsipi",
+  "Seišelu Salas": "Seišelu Salu",
+  "Dienvidāfrikas Republika": "Dienvidāfrikas Republikas",
+  "Antigva un Barbuda": "Antigvas un Barbudas",
+  "Bahamu Salas": "Bahamu Salu",
+  "Sentkitsa un Nevisa": "Sentkitsas un Nevisas",
+  "Sentvinsenta un Grenadīnas": "Sentvinsentas un Grenadīnu",
+  "Trinidāda un Tobāgo": "Trinidādas un Tobāgo",
+  "Amerikas Savienotās Valstis": "Amerikas Savienoto Valstu",
+  "Māršala Salas": "Māršala Salu",
+  "Papua–Jaungvineja": "Papua–Jaungvinejas",
+  "Zālamana Salas": "Zālamana Salu",
+};
+
+// English names that take "the" in a sentence ("the capital of the Netherlands").
+const ENGLISH_WITH_THE = ["United States", "United Kingdom", "Netherlands", "Philippines", "Bahamas",
+  "Gambia", "Maldives", "Marshall Islands", "Solomon Islands", "Comoros", "Seychelles",
+  "Central African Republic", "Dominican Republic", "Republic of the Congo", "DR Congo",
+  "United Arab Emirates"];
 </script>
 
 <!-- Machine-generated below: flags (flag-icons by Panayiotis Lipiridis, MIT licence), map shapes (Natural Earth, public domain) and libraries. Don't edit. -->
