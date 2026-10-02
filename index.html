@@ -213,6 +213,14 @@
   .dot { fill: #f3f0e6; stroke: #1c2733; stroke-width: 1.2px; vector-effect: non-scaling-stroke; cursor: pointer;
          filter: drop-shadow(0 1px 2px rgba(0,0,0,.45)); transition: fill .15s; }
 
+  /* Names of answered countries, written on the map */
+  .label { font-family: var(--sans); font-weight: 600; text-anchor: middle; dominant-baseline: middle;
+           fill: #fff; stroke: rgba(5, 10, 18, .82); stroke-width: 2.6px; paint-order: stroke; stroke-linejoin: round;
+           pointer-events: none; }
+  .label.right { fill: #dff7ea; }
+  .label.wrong { fill: #ffe0dd; }
+  .label.unreached { fill: #c9d3dc; font-style: italic; font-weight: 500; }
+
   /* Close-up box for small islands */
   .inset, .inset-lines, .inset-source { transition: opacity .25s; }
   .inset.off, .inset-lines.off, .inset-source.off { opacity: 0; pointer-events: none; }
@@ -249,8 +257,9 @@
   #end .big { font-family: var(--serif); font-size: 60px; font-weight: 600; letter-spacing: -.02em; margin: 10px 0 0; line-height: 1; font-variant-numeric: lining-nums; }
   #end .pct { color: var(--accent); font-weight: 600; margin: 8px 0 14px; }
   #endDetail { color: var(--muted); font-size: 13.5px; }
-  #end .row { display: flex; gap: 8px; justify-content: center; margin-top: 26px; }
+  #end .row { display: flex; gap: 8px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
   #end .row button { flex: 1; }
+  #end .row #viewMapBtn { flex-basis: 100%; order: 3; }
 
   #endBest { font-size: 13.5px; color: var(--muted); margin-top: 6px; min-height: 1.2em; }
   #endBest.new { color: #23734b; font-weight: 600; }
@@ -362,6 +371,7 @@
       <span class="stat" id="timer"><span data-t="time"></span> <b id="time">0:00</b></span>
     </div>
     <button id="skipBtn" data-t="skip"></button>
+    <button id="resultsBtn" class="hidden" data-t="backToResults"></button>
     <button id="quitBtn" data-t="menu"></button>
     <div id="progress"><div></div></div>
   </div>
@@ -390,6 +400,7 @@
     <div id="versus" class="hidden"></div>
     <div class="row">
       <button class="primary" id="againBtn" data-t="again"></button>
+      <button id="viewMapBtn" data-t="viewMap"></button>
       <button id="menuBtn" data-t="menu"></button>
     </div>
     <!-- Review your mistakes -->
@@ -503,6 +514,8 @@ document.addEventListener("DOMContentLoaded", () => {
       menuBest: (r, n, t) => "Your best: " + r + "/" + n + " · " + t,
       mistakes: n => "Your mistakes (" + n + ")", noMistakes: "No mistakes — a perfect round!",
       notReached: n => "Time ran out before " + n + (n === 1 ? " country." : " countries."),
+      viewMap: "View the map", backToResults: "Back to results",
+      reviewTitle: (r, n) => "Your results: " + r + " / " + n,
       practise: "Repetition is the mother of knowledge!", practiceLabel: "Mistake review",
       yourName: "Your name", challengeFriend: "Challenge a friend", someone: "A friend",
       shareText: "Can you beat my score in the Geography Game?",
@@ -557,6 +570,8 @@ document.addEventListener("DOMContentLoaded", () => {
       menuBest: (r, n, t) => "Tavs rekords: " + r + "/" + n + " · " + t,
       mistakes: n => "Tavas kļūdas (" + n + ")", noMistakes: "Bez kļūdām — perfekta spēle!",
       notReached: n => "Laiks beidzās — " + n + (n % 10 === 1 && n % 100 !== 11 ? " valsts palika neatbildēta." : " valstis palika neatbildētas."),
+      viewMap: "Skatīt karti", backToResults: "Atpakaļ uz rezultātiem",
+      reviewTitle: (r, n) => "Tavi rezultāti: " + r + " / " + n,
       practise: "Atkārtošana zināšanu māte!", practiceLabel: "Kļūdu labojums",
       yourName: "Tavs vārds", challengeFriend: "Izaicini draugu", someone: "Draugs",
       shareText: "Vai vari pārspēt manu rezultātu Ģeogrāfijas spēlē?",
@@ -894,9 +909,73 @@ document.addEventListener("DOMContentLoaded", () => {
       .attr("r", dotRadius)
       .on("click", (event, f) => onMapClick(f.properties.name));
 
+    // Names of answered countries go on top of everything.
+    els.labels = zoomLayer.append("g").attr("class", "labels");
+    labels = [];
+
     drawInset(continentCode, inRound);
     render();
     syncZoom();
+  }
+
+  // ---------- Names on the map ----------
+  // Each answered country gets its name (or capital, in capital modes) written on the globe.
+  // Where names would overlap, the smaller country's name is hidden until you zoom in.
+  let labels = [];   // { f, text, kind, el, insetEl, size }
+  const featureByName = {};
+  features.forEach(f => (featureByName[f.properties.name] = f));
+
+  function addLabel(country, kind) {
+    const f = featureByName[country.name];
+    if (!f || labels.some(l => l.f === f)) return;
+    const capitalMode = chosenMode === "findCapital" || chosenMode === "nameCapital";
+    const text = capitalMode ? capitalOf(country) : nameOf(country);
+    if (f._area === undefined) f._area = f.geometry.type === "Point" ? 0 : d3.geoArea(f);
+    const small = f.geometry.type === "Point" || basePath.area(f) < tinyArea;
+    const el = els.labels.append("text").attr("class", "label " + kind).text(text).node();
+    const label = { f, text, kind, el, small, insetEl: null };
+    // Also in the close-up box, if the country is there.
+    if (inset && inset.names.has(country.name)) {
+      const [x, y] = inset.proj(dotPosition(f));
+      label.insetEl = inset.labelLayer.append("text").attr("class", "label " + kind)
+        .attr("x", x).attr("y", y + 10).style("font-size", "7.5px").text(text).node();
+    }
+    labels.push(label);
+    labels.sort((a, b) => b.f._area - a.f._area);   // bigger countries win when names overlap
+    placeLabels();
+  }
+
+  function placeLabels() {
+    if (!labels.length) return;
+    const centre = [-view.rotate[0], -view.rotate[1]];
+    const insetShown = inset && !inset.g.classed("off");
+    const taken = [];
+    let screenPath = null;   // for big countries whose middle is off-screen
+    for (const l of labels) {
+      const p = dotPosition(l.f);
+      let show = !(insetShown && inset.names.has(l.f.properties.name));
+      let x = 0, y = 0;
+      const size = l.small ? 8 : 9.5;
+      if (show) {
+        const front = d3.geoDistance(p, centre) < Math.PI / 2 - 0.06;
+        if (front) [x, y] = projection(p);
+        if (!l.small && (!front || x < 0 || x > W || y < 0 || y > H)) {
+          // Put the name in the middle of the part of the country that is on screen.
+          screenPath = screenPath || d3.geoPath(d3.geoOrthographic().rotate(projection.rotate()).scale(projection.scale())
+            .translate(projection.translate()).clipAngle(90).clipExtent([[0, 0], [W, H]]));
+          const c = screenPath.centroid(l.f);
+          if (isFinite(c[0]) && isFinite(c[1])) [x, y] = c; else show = false;
+        } else if (!front) show = false;
+        if (l.small) y += dotRadius + 7;   // under the circle
+        const w = l.text.length * size * 0.56 + 4, h = size + 3;
+        const box = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+        if (box[2] < 0 || box[0] > W || box[3] < 0 || box[1] > H) show = false;
+        else if (taken.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) show = false;
+        else taken.push(box);
+      }
+      l.el.style.display = show ? null : "none";
+      if (show) { l.el.setAttribute("x", x); l.el.setAttribute("y", y); l.el.style.fontSize = size + "px"; }
+    }
   }
 
   // Redraws everything for the current turn and zoom of the globe.
@@ -921,6 +1000,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (visible) this.setAttribute("transform", "translate(" + projection(p) + ")");
     });
     updateInset();
+    placeLabels();
   }
   let renderQueued = false;
   function scheduleRender() {
@@ -1001,7 +1081,8 @@ document.addEventListener("DOMContentLoaded", () => {
     g.append("text").attr("class", "inset-title" + (cfg.titleAbove ? " above" : "")).attr("x", cfg.titleAbove ? x + 2 : x + 12)
       .attr("y", cfg.titleAbove ? y - 6 : y + 16).text(t().insets[continentCode]);
 
-    inset = { g, lines, sourceFrame, shapes, dots: insetDots, ring, corners, proj,
+    const labelLayer = body.append("g");
+    inset = { g, lines, sourceFrame, shapes, dots: insetDots, ring, corners, proj, labelLayer,
               names: new Set(inside.map(f => f.properties.name)), box: [x, y, w, h] };
   }
 
@@ -1242,6 +1323,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (code === "EU" || code === "OC") proj.fitExtent([[1, 1], [45, 37]], { type: "MultiPoint", coordinates: edge });
     return (outlineCache[code] = d3.geoPath(proj)(shape));
   }
+  // "View the map" after a game: the result card closes and the finished map can be explored.
+  let reviewing = false;
+  function setReviewBar(on) {
+    reviewing = on;
+    d3.select("#skipBtn").classed("hidden", on);
+    d3.select("#resultsBtn").classed("hidden", !on);
+    if (on) {
+      d3.select("#answerForm").classed("hidden", true);
+      d3.select("#flagCard").classed("hidden", true);
+      d3.select("#map").classed("clickable", false);
+      d3.select("#question").text(t().reviewTitle(score, total));
+      setFeedback("", "");
+    }
+  }
   function showScreen(which) {
     if (which === "menu") markChosen();   // refresh times and personal best
     d3.select("#menu").classed("hidden", which !== "menu");
@@ -1305,6 +1400,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showScreen("game");
     drawMap(chosenContinent);
     const m = MODES[chosenMode];
+    setReviewBar(false);
     d3.select("#map").classed("clickable", m.click);
     d3.select("#answerForm").classed("hidden", m.click);
     d3.select("#flagCard").classed("hidden", !m.flag);
@@ -1411,6 +1507,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // where it was (the red one during that moment is where you clicked).
     const asked = current.name;
     if (!right) missed.push(current);
+    addLabel(current, right ? "right" : "wrong");
     const revealFirst = !right && m.click;
     paint(asked, right ? "right" : revealFirst ? "reveal" : "wrong");
     setFeedback(message, right ? "ok" : "bad");
@@ -1451,6 +1548,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Mistakes, and the countries time ran out before.
     const notReached = queue.slice().concat(timeUp && current0 ? [current0] : []);
     showMistakes(missed, notReached);
+    notReached.forEach(c => addLabel(c, "unreached"));
     d3.select("#challengeBox").classed("hidden", practising);
     d3.select("#linkBox").classed("hidden", true);
     showScreen("end");
@@ -1613,6 +1711,8 @@ document.addEventListener("DOMContentLoaded", () => {
   d3.select("#startBtn").on("click", () => startRound());
   d3.select("#againBtn").on("click", () => { activeChallenge = null; startRound(); });
   d3.select("#menuBtn").on("click", () => { showChallengeBanner(); showScreen("menu"); });
+  d3.select("#viewMapBtn").on("click", () => { setReviewBar(true); showScreen("game"); });
+  d3.select("#resultsBtn").on("click", () => { setReviewBar(false); showScreen("end"); });
   d3.select("#quitBtn").on("click", () => { clearInterval(timerId); clearTimeout(pendingNext); clearTimeout(typingTimer); current = null; showChallengeBanner(); showScreen("menu"); });
 
   // Opened from a challenge link?
@@ -1624,6 +1724,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Exposed only so the game can be tested automatically; not used by the game itself.
   window.__game = { isCorrect, countries, ALL, onMapClick,
                     get current() { return current; }, get lang() { return lang; },
+                    set secondsLeft(v) { secondsLeft = v; },
                     get lastRound() { return lastRound; }, pack, unpack };
 });
 </script>
