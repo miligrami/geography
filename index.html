@@ -163,6 +163,20 @@
   /* (its exact size is set by the game code from the flag's proportions) */
   #flagCard img { display: block; border-radius: 4px; box-shadow: 0 0 0 1px rgba(27,36,46,.12); }
   @media (max-width: 700px) { #flagCard { top: 64px; } }
+  /* Phones: a compact top bar */
+  @media (max-width: 560px) {
+    #bar { gap: 6px 8px; padding: 8px 12px 10px; }
+    #questionBox { flex-basis: 100%; }
+    #modeLabel { font-size: 10px; margin-bottom: 0; }
+    #question { font-size: 16px; }
+    #answerForm { flex-basis: 100%; }
+    #answer { flex: 1; width: auto; padding: 7px 11px; }
+    #answerForm button { padding: 6px 12px; }
+    .stat { font-size: 12px; padding: 6px 7px; }
+    .stat b { margin-left: 2px; }
+    #skipBtn, #quitBtn, #resultsBtn { padding: 6px 9px; font-size: 13px; }
+    #hint { border-radius: 12px; font-size: 11px; padding: 5px 10px; }
+  }
 
   /* Feedback floats as a small pill at the top of the map */
   #feedback {
@@ -238,7 +252,7 @@
   #zoomBtns button { width: 40px; height: 40px; padding: 0; font-size: 18px; border: 0; border-radius: 0; color: var(--muted); }
   #zoomBtns button + button { border-top: 1px solid #eef0f2; }
   #zoomBtns button:hover { background: #f4f7f9; color: var(--ink); }
-  #hint { position: absolute; z-index: 2; left: 16px; bottom: 16px; color: #c3d3df; font-size: 12px;
+  #hint { position: absolute; z-index: 2; left: 16px; bottom: 16px; max-width: calc(100% - 88px); color: #c3d3df; font-size: 12px;
           background: rgba(9,16,28,.78); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
           padding: 6px 12px; border-radius: 999px; }
 
@@ -434,6 +448,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const PAUSE_AFTER_RIGHT_CAPITAL = 1600;   // longer in capital modes, to read "Copenhagen is the capital of Denmark"
   const PAUSE_AFTER_WRONG = 1800;
   const W = 1000, H = 620;         // drawing size of the map
+  // The part of the drawing that is shown. On wide screens: all of it. On tall, narrow
+  // screens (phones), a narrower, taller slice — up to 1.6× closer — so maps aren't tiny.
+  let vb = { x: 0, y: 0, w: W, h: H };
+  function fitViewBox() {
+    const box = document.getElementById("mapWrap").getBoundingClientRect();
+    if (!box.width || !box.height) return;
+    const a = box.width / box.height;
+    const f = Math.max(1, Math.min(1.6, Math.sqrt((W / H) / a)));
+    if (f === 1) vb = { x: 0, y: 0, w: W, h: H };
+    else { const w = W / f, h = w / a; vb = { x: (W - w) / 2, y: (H - h) / 2, w, h }; }
+    document.getElementById("map").setAttribute("viewBox", [vb.x, vb.y, vb.w, vb.h].map(v => v.toFixed(1)).join(" "));
+  }
 
   // Each continent: the area of the globe to show [west, south, east, north].
   // (Its name in each language is in TEXT below.)
@@ -751,7 +777,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const out = new Uint32Array(earthPixels.data.buffer);
     out.fill(0);
     // Where the map's drawing area (W × H) sits on the canvas.
-    const s = Math.min(cw / W, ch / H), ox = (cw - W * s) / 2, oy = (ch - H * s) / 2;
+    const s = Math.min(cw / vb.w, ch / vb.h);
+    const ox = (cw - vb.w * s) / 2 - vb.x * s, oy = (ch - vb.h * s) / 2 - vb.y * s;
     const R = projection.scale() * s, cx = ox + (W / 2) * s, cy = oy + (H / 2) * s;
     if (tex) {
       const lam0 = -view.rotate[0] * Math.PI / 180, phi0 = -view.rotate[1] * Math.PI / 180;
@@ -792,7 +819,7 @@ document.addEventListener("DOMContentLoaded", () => {
     earthCtx.beginPath(); earthCtx.arc(cx, cy, R * 1.09, 0, 2 * Math.PI); earthCtx.fill();
     earthCtx.globalCompositeOperation = "source-over";
   }
-  window.addEventListener("resize", () => { if (projection) render(false); });
+  window.addEventListener("resize", () => { if (projection) { fitViewBox(); render(false); } });
 
   // ---------- Map: a globe you can turn ----------
   // Every map is a real globe (seen from space), so countries keep their true sizes.
@@ -830,7 +857,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const inContinent = (c, code) => code === "WD" || c.continents.includes(code);
 
   let dotRadius = 6;   // size of the circles for small countries
-  let tinyArea = 60;   // countries smaller than this at the start of a round get a circle
+  let tinyArea = 60;   // countries smaller than this (on screen, when facing you) get a circle
+  // Size a country would have on screen if it faced you — so countries on the back of the
+  // globe at the start are not mistaken for tiny ones.
+  // Countries facing you are measured as they look (edge countries look smaller and are harder to hit).
+  const facingArea = f =>
+    d3.geoDistance(dotPosition(f), [-baseRotate[0], -baseRotate[1]]) < Math.PI / 2 - 0.15
+      ? basePath.area(f) : d3.geoArea(f) * baseScale * baseScale;
 
   // Where to put the circle: the centre of the country's biggest piece of land (worked out once).
   function dotPosition(f) {
@@ -848,6 +881,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Draws the globe for one continent (or the whole world).
   function drawMap(continentCode) {
+    fitViewBox();
     const cfg = CONTINENTS[continentCode];
     const wholeGlobe = Math.min(W, H) / 2 - 14;   // globe size when you see all of it
     if (cfg.world) {
@@ -901,7 +935,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Circles for countries too small to click (Vatican, Caribbean islands, Pacific islands …)
     const tiny = features.filter(f => inRound(f) &&
-      (f.geometry.type === "Point" || basePath.area(f) < tinyArea));
+      (f.geometry.type === "Point" || facingArea(f) < tinyArea));
     dots = zoomLayer.selectAll("circle.dot")
       .data(tiny)
       .join("circle")
@@ -931,7 +965,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const capitalMode = chosenMode === "findCapital" || chosenMode === "nameCapital";
     const text = capitalMode ? capitalOf(country) : nameOf(country);
     if (f._area === undefined) f._area = f.geometry.type === "Point" ? 0 : d3.geoArea(f);
-    const small = f.geometry.type === "Point" || basePath.area(f) < tinyArea;
+    const small = f.geometry.type === "Point" || facingArea(f) < tinyArea;
     const el = els.labels.append("text").attr("class", "label " + kind).text(text).node();
     const label = { f, text, kind, el, small, insetEl: null };
     // Also in the close-up box, if the country is there.
@@ -959,17 +993,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (show) {
         const front = d3.geoDistance(p, centre) < Math.PI / 2 - 0.06;
         if (front) [x, y] = projection(p);
-        if (!l.small && (!front || x < 0 || x > W || y < 0 || y > H)) {
+        if (!l.small && (!front || x < vb.x || x > vb.x + vb.w || y < vb.y || y > vb.y + vb.h)) {
           // Put the name in the middle of the part of the country that is on screen.
           screenPath = screenPath || d3.geoPath(d3.geoOrthographic().rotate(projection.rotate()).scale(projection.scale())
-            .translate(projection.translate()).clipAngle(90).clipExtent([[0, 0], [W, H]]));
+            .translate(projection.translate()).clipAngle(90).clipExtent([[vb.x, vb.y], [vb.x + vb.w, vb.y + vb.h]]));
           const c = screenPath.centroid(l.f);
           if (isFinite(c[0]) && isFinite(c[1])) [x, y] = c; else show = false;
         } else if (!front) show = false;
         if (l.small) y += dotRadius + 7;   // under the circle
         const w = l.text.length * size * 0.56 + 4, h = size + 3;
         const box = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
-        if (box[2] < 0 || box[0] > W || box[3] < 0 || box[1] > H) show = false;
+        if (box[2] < vb.x || box[0] > vb.x + vb.w || box[3] < vb.y || box[1] > vb.y + vb.h) show = false;
         else if (taken.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) show = false;
         else taken.push(box);
       }
@@ -1021,6 +1055,8 @@ document.addEventListener("DOMContentLoaded", () => {
     inset = null;
     const cfg = INSETS[continentCode];
     if (!cfg) return;
+    const [bx, by, bw, bh] = cfg.at;
+    if (bx < vb.x || by - 16 < vb.y || bx + bw > vb.x + vb.w || by + bh > vb.y + vb.h) return;   // no room (narrow screens)
     const [west, south, east, north] = cfg.area;
     const [x, y, w, h] = cfg.at;
     const top = cfg.titleAbove ? 6 : 22;   // room for the title (unless it sits above the box)
@@ -1111,7 +1147,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const centre = [-view.rotate[0], -view.rotate[1]];
     const facing = inset.corners.every(c => d3.geoDistance(c, centre) < Math.PI / 2 - 0.1);
     const px = inset.corners.map(c => projection(c));
-    const onScreen = px.every(([a, b]) => a > 0 && a < W && b > 0 && b < H);
+    const onScreen = px.every(([a, b]) => a > vb.x && a < vb.x + vb.w && b > vb.y && b < vb.y + vb.h);
     const show = view.k < 1.3 && facing && onScreen;
     inset.g.classed("off", !show);
     inset.lines.classed("off", !show);
@@ -1216,7 +1252,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (f.geometry.type === "Point") return true;
     if (d3.geoDistance(dotPosition(f), [-baseRotate[0], -baseRotate[1]]) > Math.PI / 2 - 0.15) return true;
     const [[x0, y0], [x1, y1]] = basePath.bounds(f);
-    return basePath.area(f) < 600 || x0 < 0 || y0 < 0 || x1 > W || y1 > H;
+    return facingArea(f) < 600 || x0 < vb.x || y0 < vb.y || x1 > vb.x + vb.w || y1 > vb.y + vb.h;
   }
   d3.select("#zoomIn").on("click", () => animateTo(view.rotate, Math.min(MAX_K, view.k * 1.8), 350));
   d3.select("#zoomOut").on("click", () => animateTo(view.rotate, Math.max(minK, view.k / 1.8), 350));
@@ -1842,7 +1878,7 @@ const COUNTRIES = [
   ["Republic of the Congo","Brazzaville","AF",["congo","congo brazzaville","congo republic"],[]],
   ["DR Congo","Kinshasa","AF",["democratic republic of the congo","drc","congo kinshasa"],[]],
   ["Djibouti","Djibouti","AF",[],[]],
-  ["Equatorial Guinea","Malabo","AF",[],[]],
+  ["Equatorial Guinea","Ciudad de la Paz","AF",[],["malabo","oyala"]],
   ["Eritrea","Asmara","AF",[],[]],
   ["Eswatini","Mbabane","AF",["swaziland"],[]],
   ["Ethiopia","Addis Ababa","AF",[],[]],
@@ -1944,6 +1980,9 @@ const COUNTRIES = [
 // Where Tēzaurs (tezaurs.lv) uses a different main form, the game shows that form and still accepts the
 // official one: Ņūdeli (Jaundeli), Timphu (Timpu), Mogadiša (Mogadīšo), Vindhūka (Vindhuka),
 // Dakara (Dakāra), Santome (Santomē), Teinainano (Dienvidtarava).
+// Equatorial Guinea: capital moved from Malabo to Ciudad de la Paz by decree in January 2026 (the city is
+// still being built); Latvian spelling "Sjudada de la Pasa" from Latvian Wikipedia, as the official list
+// predates the move. Malabo is still accepted.
 const LATVIAN = {
   "Albania": ["Albānija","Tirāna",[],[]],
   "Andorra": ["Andora","Andora la Velja",[],[]],
@@ -2053,7 +2092,7 @@ const LATVIAN = {
   "Republic of the Congo": ["Kongo Republika","Brazavila",["Kongo"],[]],
   "DR Congo": ["Kongo Demokrātiskā Republika","Kinšasa",["Kongo DR"],[]],
   "Djibouti": ["Džibutija","Džibuti",[],[]],
-  "Equatorial Guinea": ["Ekvatoriālā Gvineja","Malabo",[],[]],
+  "Equatorial Guinea": ["Ekvatoriālā Gvineja","Sjudada de la Pasa",[],["Malabo","Ojala"]],
   "Eritrea": ["Eritreja","Asmera",[],[]],
   "Eswatini": ["Svatini","Mbabane",["Svazilenda"],["Lobamba"]],
   "Ethiopia": ["Etiopija","Adisabeba",[],[]],
